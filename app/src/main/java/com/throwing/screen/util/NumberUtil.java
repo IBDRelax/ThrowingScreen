@@ -1,4 +1,4 @@
-package com.throwing.screen;
+package com.throwing.screen.util;
 
 /**
  * 数字处理工具

@@ -1,4 +1,4 @@
-package com.throwing.screen;
+package com.throwing.screen.bean;
 
 import androidx.annotation.IntDef;
 
@@ -8,15 +8,22 @@ import java.lang.annotation.RetentionPolicy;
 public class ThrowingMsg {
 
     private @MsgType int type = MsgType.NONE;
-    private byte[] content;
+    private String content;
     private Receiver receiver;
 
     private String seq;//消息内容唯一标示，针对于分段消息（如图片需要分消息处理）每一条都是统一值
 
-    public ThrowingMsg(int type, byte[] content, Receiver receiver) {
+    public ThrowingMsg(int type, String content, Receiver receiver) {
         this.type = type;
         this.content = content;
         this.receiver = receiver;
+    }
+
+    public ThrowingMsg(int type, String content, Receiver receiver, String seq) {
+        this.type = type;
+        this.content = content;
+        this.receiver = receiver;
+        this.seq = seq;
     }
 
     public int getType() {
@@ -27,11 +34,11 @@ public class ThrowingMsg {
         this.type = type;
     }
 
-    public byte[] getContent() {
+    public String getContent() {
         return content;
     }
 
-    public void setContent(byte[] content) {
+    public void setContent(String content) {
         this.content = content;
     }
 
@@ -41,6 +48,14 @@ public class ThrowingMsg {
 
     public void setReceiver(Receiver receiver) {
         this.receiver = receiver;
+    }
+
+    public String getSeq() {
+        return seq;
+    }
+
+    public void setSeq(String seq) {
+        this.seq = seq;
     }
 
     @IntDef({MsgType.NONE, MsgType.THROW_REQUEST, MsgType.THROW_AGREE, MsgType.TEXT, MsgType.IMAGE})
