@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.util.UUID;
 
 /**
  * 投屏发起端对象
@@ -16,7 +17,7 @@ public class ThrowingSendConnector {
 
     private DatagramChannel channel;
 
-    private ByteBuffer buffer = ByteBuffer.allocate(4096);
+    private ByteBuffer buffer = ByteBuffer.allocate(Constant.BUFFER_LENGTH);
 
     public ThrowingSendConnector() {
         init();
@@ -31,20 +32,22 @@ public class ThrowingSendConnector {
         }
     }
 
-    public void search(){
-        try {
-            buffer.clear();
-            buffer.put("search test".getBytes());
-            buffer.flip();
-            channel.send(buffer, new InetSocketAddress("127.0.0.1", Constant.RECEIVER_PORT));
-        } catch (IOException e) {
-            Log.e(TAG, e.getMessage(), e);
-        }
+    public void search() {
+        @ThrowingMsg.MsgType int type = ThrowingMsg.MsgType.THROW_REQUEST;
+        byte[] content = "search test".getBytes();
+        Receiver receiver = new Receiver("127.0.0.1", Constant.RECEIVER_PORT);
+//        Receiver receiver = new Receiver("255.255.255.255", Constant.RECEIVER_PORT);
+        ThrowingMsg msg = new ThrowingMsg(type, content, receiver);
+        send(msg);
     }
 
-    public void send(SendMsg msg) {
+    public void send(ThrowingMsg msg) {
         try {
             buffer.clear();
+            byte[] bytes = NumberUtil.int2Bytes(msg.getType());
+            buffer.put(bytes);
+            byte[] seqBytes = UUID.randomUUID().toString().getBytes();
+            buffer.put(seqBytes);
             buffer.put(msg.getContent());
             buffer.flip();
             Receiver receiver = msg.getReceiver();
@@ -55,7 +58,7 @@ public class ThrowingSendConnector {
     }
 
     public void dispose() {
-        if (channel != null ) {
+        if (channel != null) {
             try {
                 channel.close();
                 channel = null;
@@ -64,7 +67,7 @@ public class ThrowingSendConnector {
             }
         }
 
-        if(buffer != null) {
+        if (buffer != null) {
             buffer.clear();
             buffer = null;
         }
