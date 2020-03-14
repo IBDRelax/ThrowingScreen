@@ -21,9 +21,6 @@ import com.throwing.screen.listener.OnScreenShotListener;
 
 import java.lang.ref.SoftReference;
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 截屏工具
@@ -47,7 +44,7 @@ public class ScreenShotHelper {
 
     public ScreenShotHelper(Context context, int resultCode, Intent data, OnScreenShotListener onScreenShotListener) {
         this.mOnScreenShotListener = onScreenShotListener;
-        this.mRefContext = new SoftReference<Context>(context);
+        this.mRefContext = new SoftReference<>(context);
 
         mMediaProjection = getMediaProjectionManager().getMediaProjection(resultCode, data);
         mImageReader = ImageReader.newInstance(getScreenWidth(), getScreenHeight(), PixelFormat.RGBA_8888, 1);

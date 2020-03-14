@@ -3,6 +3,7 @@ package com.push.component.client;
 import android.util.Log;
 
 import com.push.component.PushHandler;
+import com.push.component.constant.PushConstant;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -44,20 +45,33 @@ public class PushClient implements Runnable {
         threadPool = Executors.newFixedThreadPool(4);
     }
 
-    public void start() throws IOException {
-        checkConfigValid();
-        //打开监听信道并设置为非阻塞模式
-        socketChannel = SocketChannel.open();
-        socketChannel.socket().connect(new InetSocketAddress(config.getIp(), config.getPort()), config.getConnectTimeOut());
-        if (pushHandler != null) {
-            doTask(() -> pushHandler.onConnect(socketChannel));
-        }
-        socketChannel.configureBlocking(false);
-        //打开并注册选择器到信道
-        selector = Selector.open();
-        socketChannel.register(selector, SelectionKey.OP_READ);//SelectionKey.OP_READ表示读就绪事件
+    public void start() {
+        try {
+            checkConfigValid();
+            //打开监听信道并设置为非阻塞模式
+            socketChannel = SocketChannel.open();
+            socketChannel.socket().connect(new InetSocketAddress(config.getIp(), config.getPort()), config.getConnectTimeOut());
+            if (pushHandler != null) {
+                doTask(() -> pushHandler.onConnect(socketChannel));
+            }
+            socketChannel.configureBlocking(false);
+            //打开并注册选择器到信道
+            selector = Selector.open();
+            socketChannel.register(selector, SelectionKey.OP_READ);//SelectionKey.OP_READ表示读就绪事件
 
-        future = doTask(this);
+            future = doTask(this);
+        } catch (IOException e) {
+            try {
+                Thread.sleep(3000);
+                //重连
+                doTask(() -> {
+                    closeConnect();
+                    start();
+                });
+            } catch (InterruptedException e1) {
+                Log.e(TAG, e.getMessage(), e);
+            }
+        }
     }
 
     private void checkConfigValid() throws RuntimeException {
@@ -123,7 +137,7 @@ public class PushClient implements Runnable {
 
     private byte[] readBytes(SocketChannel sc) throws IOException {
         // ==================我们要将数据从通道读到buffer里
-        ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(PushConstant.MSG_BUFFER_SIZE);
         int readBytes = sc.read(byteBuffer);// channel ==> buffer
         if (readBytes > 0) {// 代表读完毕了,准备写(即打印出来)
             byteBuffer.flip(); // 为write()准备
@@ -180,21 +194,22 @@ public class PushClient implements Runnable {
     /**
      * 发送字符串到服务器
      */
+
     public void sendMsg(String message) {
         if (socketChannel != null && socketChannel.isConnected()) {
-            doTask(() -> {
-                try {
-                    ByteBuffer writeBuffer = ByteBuffer.wrap(message.getBytes("UTF-8"));
-                    int sendCount = socketChannel.write(writeBuffer);
-                    Log.e(TAG, sendCount + "");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
+//            doTask(() -> {
+            try {
+                ByteBuffer writeBuffer = ByteBuffer.wrap(message.getBytes("UTF-8"));
+                int sendCount = socketChannel.write(writeBuffer);
+                Log.e(TAG, message + "");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+//            });
         }
     }
 
-    public void close(){
+    public void close() {
         closeConnect();
         destroy();
     }

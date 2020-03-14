@@ -8,11 +8,9 @@
 
     <ImageView
         android:id="@+id/iv_capture"
-        android:layout_width="240dp"
-        android:layout_height="240dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter" />
 
     <Button
         android:id="@+id/btn_search"

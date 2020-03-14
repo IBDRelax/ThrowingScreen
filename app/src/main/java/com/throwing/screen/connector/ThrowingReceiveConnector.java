@@ -1,33 +1,23 @@
 package com.throwing.screen.connector;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.push.component.PushHandler;
 import com.push.component.server.PushServer;
-import com.throwing.screen.ThrowingScreenApplication;
-import com.throwing.screen.bean.ReceiveByteArray;
+import com.throwing.screen.bean.Receiver;
 import com.throwing.screen.bean.ThrowingMsg;
 import com.throwing.screen.constant.Constant;
 import com.throwing.screen.listener.OnReceiveMsgListener;
-import com.throwing.screen.util.NumberUtil;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.net.MulticastSocket;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 投屏接收端对象
@@ -60,130 +50,107 @@ public class ThrowingReceiveConnector {
 
     private void init() {
         try {
-            channel = DatagramChannel.open();
-            channel.configureBlocking(false);
-            channel.socket().bind(new InetSocketAddress(Constant.RECEIVER_PORT));
+//            channel = DatagramChannel.open();
+//            channel.configureBlocking(false);
+//            channel.socket().bind(new InetSocketAddress(Constant.FIND_PORT));
 
             pushServer = new PushServer();
-        } catch (IOException e) {
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+    }
+
+    public void waitSearch() {
+        try {
+            MulticastSocket socket = new MulticastSocket(Constant.FIND_PORT);
+//            socket.joinGroup(InetAddress.getByName(Constant.FIND_BROADCAST_IP));
+            new Thread(() -> {
+                byte[] data = new byte[1024];
+                DatagramPacket pack = new DatagramPacket(data, data.length);
+                while (true) {
+                    // 等待主机的搜索
+                    try {
+                        socket.receive(pack);
+                    } catch (Exception e) {
+                        Log.e(TAG, e.getMessage(), e);
+                    }
+                    byte[] bytes = new byte[pack.getLength()];
+                    System.arraycopy(pack.getData(), 0, bytes, 0, bytes.length);
+                    String str = new String(bytes);
+                    if(str.equals(Constant.SEARCH)){
+                        @ThrowingMsg.MsgType int type = ThrowingMsg.MsgType.THROW_REQUEST;
+                        Receiver receiver = new Receiver(pack.getAddress().getHostAddress(), -1);
+                        ThrowingMsg msg = new ThrowingMsg(type, str, receiver, null);
+                        if (onReceiveMsgListener != null) {
+                            onReceiveMsgListener.onReceiveMsg(null, msg);
+                        }
+                    }
+                    Log.e(TAG, str);
+                }
+            }).start();
+        } catch (Exception e) {
             Log.e(TAG, e.getMessage(), e);
         }
     }
 
     public void startListen() {
+        StringBuffer sb = new StringBuffer();
         new Thread(() -> {
             pushServer.setPushHandler(new PushHandler() {
                 @Override
                 public void onConnect(SocketChannel sc) {
                     Log.e(TAG, "onConnect");
-                    Handler handler = new Handler(Looper.myLooper());
-                    handler.post(() -> Toast.makeText(ThrowingScreenApplication.getInstance(),
-                            "onConnect", Toast.LENGTH_SHORT).show());
                 }
 
                 @Override
                 public void onMessage(SocketChannel sc, byte[] bytes) {
-                    Handler handler = new Handler(Looper.myLooper());
-                    handler.post(() -> Toast.makeText(ThrowingScreenApplication.getInstance(),
-                            "onMessage", Toast.LENGTH_SHORT).show());
-
                     @ThrowingMsg.MsgType int type = ThrowingMsg.MsgType.IMAGE;
                     String msgContent = new String(bytes);
-                    ThrowingMsg msg = new ThrowingMsg(type, msgContent, null, null);
-                    if (onReceiveMsgListener != null) {
-                        onReceiveMsgListener.onReceiveMsg(null, msg);
+//                    Log.e(TAG, msgContent);
+
+                    //没有end，继续往sb中缓存
+                    if (!msgContent.contains(Constant.MSG_SUFFIX)) {
+                        sb.append(msgContent);
+                        //有end，截取end前的先结束消息，再把后面的加到后面一个消息（需要注意end在最后面的临界情况，会导致split出的数组长度只有1）
+                    } else {
+                        String[] subMsgArr = new String[2];//subMsgArr[0]表示前一个消息的内容，subMsgArr[1]是后面一个消息的内容，前面是以end为分界
+                        String[] splitStrArr = msgContent.split(Constant.MSG_SUFFIX);
+                        if (splitStrArr.length == 1) {//说明end在这次消息的开头或者结尾
+                            if (msgContent.startsWith(Constant.MSG_SUFFIX)) {//开头
+                                subMsgArr[1] = splitStrArr[0];
+                            } else {//结尾
+                                subMsgArr[0] = splitStrArr[0];
+                            }
+                        } else {
+                            subMsgArr = splitStrArr;
+                        }
+
+                        if (subMsgArr[0] != null) {
+                            sb.append(subMsgArr[0]);
+                        }
+
+                        //先结束这次消息
+                        ThrowingMsg msg = new ThrowingMsg(type, sb.toString(), null, null);
+                        if (onReceiveMsgListener != null) {
+                            onReceiveMsgListener.onReceiveMsg(null, msg);
+                        }
+
+                        //再把后面的内容加到下一个消息buffer中
+                        sb.delete(0, sb.length());
+                        if (subMsgArr[1] != null) {
+                            sb.append(subMsgArr[1]);
+                        }
+
                     }
                 }
 
                 @Override
                 public void onDisconnect(SocketChannel sc, boolean isRemote, boolean isAnomalous) {
                     Log.e(TAG, "onDisconnect");
-                    Handler handler = new Handler(Looper.myLooper());
-                    handler.post(() -> Toast.makeText(ThrowingScreenApplication.getInstance(),
-                            "onDisconnect", Toast.LENGTH_SHORT).show());
                 }
             });
-            pushServer.start(Constant.RECEIVER_PORT);
+            pushServer.start(Constant.PUSH_MSG_PORT);
         }).start();
-
-//        running = true;
-//        new Thread(() -> {
-//            try {
-//                final Map<String, ReceiveByteArray> msgContentMap = new ConcurrentHashMap<>();//存储消息的seq和content
-//                Selector selector = Selector.open();
-//                channel.register(selector, SelectionKey.OP_READ);
-//                while (running) {
-//                    while (selector.select() > 0) {
-//                        Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
-//                        while (iterator.hasNext()) {
-//                            SelectionKey selectionKey = iterator.next();
-//                            if (selectionKey.isReadable()) {
-//
-//                                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//                                baos.write(new byte[2], 0, 100);
-//
-//                                buffer.clear();
-//                                SocketAddress address = channel.receive(buffer);
-//                                buffer.flip();
-//
-//                                //前两位是类型
-//                                int typeLength = Constant.MSG_TYPE_LENGTH;
-//                                byte[] typeBytes = new byte[typeLength];
-//                                buffer.get(typeBytes, 0, typeLength);
-//                                int type = NumberUtil.byte2Int(typeBytes);
-//
-//                                //中间36位是uuid
-//                                int seqLength = Constant.MSG_SEQ_LENGTH;
-//                                byte[] seqBytes = new byte[seqLength];
-//                                buffer.get(seqBytes, 0, seqLength);
-//
-//                                //后面是内容
-//                                int contentLength = buffer.remaining();
-//                                byte[] bytes = new byte[contentLength];
-//                                buffer.get(bytes, 0, contentLength);
-//
-//                                String seq = new String(seqBytes);
-//                                String content = new String(bytes);
-//                                Log.e(TAG, seq + "->" + contentLength);
-//
-//                                if (content.startsWith("start")) {
-//                                    int totalLength = Integer.valueOf(content.substring(5));
-//                                    if(totalLength > 0) {
-//                                        msgContentMap.put(seq, new ReceiveByteArray(new byte[totalLength]));
-//                                    }
-//                                } else if (content.equals("end")) {
-//                                    ReceiveByteArray byteArray = msgContentMap.remove(seq);
-//                                    if(byteArray != null) {
-//                                        String msgContent = new String(byteArray.getBytes());
-//
-//                                        Log.e(TAG, type + "");
-//                                        Log.e(TAG, type + ":" + seq + "->" + msgContent.length());
-//
-//                                        if (msgContent != null) {
-//                                            ThrowingMsg msg = new ThrowingMsg(type, msgContent, null, seq);
-//                                            if (onReceiveMsgListener != null) {
-//                                                onReceiveMsgListener.onReceiveMsg(address, msg);
-//                                            }
-//                                        }
-//                                    }
-//                                } else {
-//                                    ReceiveByteArray byteArray = msgContentMap.get(seq);
-//                                    if (byteArray != null) {
-//                                        int offset = byteArray.getOffset();
-//                                        System.arraycopy(bytes, 0, byteArray.getBytes(), offset, bytes.length);
-//                                        offset += bytes.length;
-//                                        byteArray.setOffset(offset);
-//                                    }
-//                                }
-//                            }
-//                        }
-//                        iterator.remove();
-//                    }
-//                }
-//            } catch (IOException e) {
-//                Log.e(TAG, e.getMessage(), e);
-//            }
-//        }).start();
     }
 
     public void dispose() {

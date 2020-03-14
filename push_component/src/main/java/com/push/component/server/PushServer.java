@@ -3,6 +3,7 @@ package com.push.component.server;
 import android.util.Log;
 
 import com.push.component.PushHandler;
+import com.push.component.constant.PushConstant;
 import com.push.component.util.TimeUtil;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ public class PushServer {
     }
 
     public void start(int port) {
-        threadPool = Executors.newFixedThreadPool(4);
+        threadPool = Executors.newFixedThreadPool(1);
         initSelector();// 初始化selector
         initServerSocketChannel(port); // 初始化serverSocketChannel
         run();
@@ -123,6 +124,8 @@ public class PushServer {
             if (pushHandler != null) {
                 threadPool.submit(() -> pushHandler.onMessage(sc, bytes));
             }
+            //发送收到消息的回执
+            sendMsg(sc, "msg received!");
         } else {//数据为空，说明远程连接已经断开
             sc.close();
             if (pushHandler != null) {
@@ -133,7 +136,7 @@ public class PushServer {
 
     private byte[] readBytes(SocketChannel sc) throws IOException {
         // ==================我们要将数据从通道读到buffer里
-        ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(PushConstant.MSG_BUFFER_SIZE);
         int readBytes = sc.read(byteBuffer);// channel ==> buffer
         if (readBytes > 0) {// 代表读完毕了,准备写(即打印出来)
             byteBuffer.flip(); // 为write()准备
