@@ -43,7 +43,7 @@ public class ScreenShotHelper {
     private VirtualDisplay mVirtualDisplay;
     private final SoftReference<Context> mRefContext;
 
-    ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(1);
+//    ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(1);
 
     public ScreenShotHelper(Context context, int resultCode, Intent data, OnScreenShotListener onScreenShotListener) {
         this.mOnScreenShotListener = onScreenShotListener;
@@ -54,22 +54,21 @@ public class ScreenShotHelper {
     }
 
     public void startScreenShot() {
-        createVirtualDisplay();
+//        threadPool.scheduleWithFixedDelay(runnable, 500, 500, TimeUnit.MILLISECONDS);
 
-        threadPool.scheduleWithFixedDelay(runnable, 500, 500, TimeUnit.MILLISECONDS);
+        new Thread(runnable).start();
     }
 
     private Runnable runnable = new Runnable() {
         @Override
         public void run() {
-            mImageReader = ImageReader.newInstance(getScreenWidth(), getScreenHeight(), PixelFormat.RGBA_8888, 2);
-            createVirtualDisplay();
+            mImageReader = ImageReader.newInstance(getScreenWidth(), getScreenHeight(), PixelFormat.RGBA_8888, 1);
             mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
                     Log.e(TAG, "");
 
-                    Image image = mImageReader.acquireLatestImage();
+                    Image image = mImageReader.acquireNextImage();
                     if(image != null) {
                         int width = image.getWidth();
                         int height = image.getHeight();
@@ -90,10 +89,10 @@ public class ScreenShotHelper {
                         }
                     }
 
-                    mImageReader.setOnImageAvailableListener(null, null);
-                    mVirtualDisplay.release();
                 }
             }, getBackgroundHandler());
+
+            createVirtualDisplay();
 
 //            Image image = mImageReader.acquireLatestImage();
 //            int width = image.getWidth();
@@ -149,6 +148,9 @@ public class ScreenShotHelper {
     private void dispose(){
         if(mVirtualDisplay != null) {
             mVirtualDisplay.release();
+        }
+        if(mImageReader != null){
+            mImageReader.close();
         }
         if(mMediaProjection != null) {
             mMediaProjection.stop();

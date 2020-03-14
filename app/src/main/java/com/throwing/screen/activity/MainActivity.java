@@ -64,12 +64,18 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> Toast.makeText(getApplicationContext(), msg.getContent(), Toast.LENGTH_SHORT).show());
                     break;
                 case ThrowingMsg.MsgType.IMAGE:
-                    Log.e(TAG, msg.getSeq() + "->" + msg.getContent().length());
-                    Bitmap bitmap = CompressUtil.base64ToBitmap(msg.getContent());
-                    runOnUiThread(() -> ivCapture.setImageBitmap(bitmap));
+                    try {
+                        Log.e(TAG, msg.getContent().substring(0, 10));
+                        Toast.makeText(getApplicationContext(), "图片消息", Toast.LENGTH_SHORT).show();
+                        Bitmap bitmap = CompressUtil.base64ToBitmap(msg.getContent());
+                        runOnUiThread(() -> ivCapture.setImageBitmap(bitmap));
+                    } catch (Exception e){
+                        Log.e(TAG, e.getMessage(), e);
+                    }
                     break;
             }
         });
+        receiveConnector.startListen();
     }
 
     @OnClick({R.id.btn_search, R.id.btn_capture})
@@ -120,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
 //        Receiver receiver = new Receiver("127.0.0.1", Constant.RECEIVER_PORT);
 //        Receiver receiver = new Receiver("255.255.255.255", Constant.RECEIVER_PORT);
                                     Receiver receiver = new Receiver("192.168.1.24", Constant.RECEIVER_PORT);
+//                                    Receiver receiver = new Receiver("10.180.2.86", Constant.RECEIVER_PORT);
                                     ThrowingMsg msg = new ThrowingMsg(type, base64Str, receiver, UUID.randomUUID().toString());
                                     Log.e(TAG, msg.getSeq() + "->" + msg.getContent().length());
                                     sendConnector.send(msg);
