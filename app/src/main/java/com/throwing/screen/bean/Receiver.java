@@ -1,4 +1,4 @@
-package com.throwing.screen;
+package com.throwing.screen.bean;
 
 /**
  * 接收方信息
