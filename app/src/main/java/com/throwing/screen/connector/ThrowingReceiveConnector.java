@@ -63,6 +63,7 @@ public class ThrowingReceiveConnector {
     public void waitSearch() {
         try {
             MulticastSocket socket = new MulticastSocket(Constant.FIND_PORT);
+            socket.setLoopbackMode(true);
 //            socket.joinGroup(InetAddress.getByName(Constant.FIND_BROADCAST_IP));
             new Thread(() -> {
                 byte[] data = new byte[1024];

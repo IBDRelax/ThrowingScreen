@@ -38,6 +38,10 @@ public class ThrowingScreenService extends Service {
         int resultCode = intent.getIntExtra("code", -1);
         Intent resultData = intent.getParcelableExtra("data");
 
+        if (sendConnector == null) {
+            sendConnector = new ThrowingSendConnector();
+        }
+
         //截屏
         ScreenShotHelper screenShotHelper = new ScreenShotHelper(this, resultCode, resultData,
                 (Bitmap bitmap) -> {
@@ -45,14 +49,13 @@ public class ThrowingScreenService extends Service {
 //                    runOnUiThread(() -> ivCapture.setImageBitmap(bitmap));
 
                     String base64Str = CompressUtil.bitmapToBase64(bitmap);
-                    if (sendConnector == null) {
-                        sendConnector = new ThrowingSendConnector();
+
+                    if(!sendConnector.isPushConnected()){
+                        sendConnector.startPush();
                     }
 
                     @ThrowingMsg.MsgType int type = ThrowingMsg.MsgType.IMAGE;
-//        Receiver receiver = new Receiver("127.0.0.1", PushConstant.PUSH_MSG_PORT);
-//        Receiver receiver = new Receiver("255.255.255.255", PushConstant.PUSH_MSG_PORT);
-                    Receiver receiver = new Receiver("192.168.1.24", Constant.PUSH_MSG_PORT);
+                    Receiver receiver = new Receiver(ThrowingSendConnector.throwingIp, Constant.PUSH_MSG_PORT);
                     ThrowingMsg msg = new ThrowingMsg(type, base64Str, receiver, UUID.randomUUID().toString());
                     Log.e(TAG, msg.getSeq() + "->" + msg.getContent().length());
                     sendConnector.send(msg);

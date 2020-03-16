@@ -9,11 +9,13 @@ import android.media.projection.MediaProjectionManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -54,6 +56,9 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.btn_capture)
     Button btnCapture;
 
+    @BindView(R.id.et_ip)
+    EditText etIp;
+
     private WifiManager.MulticastLock multicastLock;
 
     @Override
@@ -77,6 +82,14 @@ public class MainActivity extends AppCompatActivity {
         receiveConnector.setOnReceiveMsgListener((SocketAddress address, ThrowingMsg msg) -> {
             switch (msg.getType()) {
                 case ThrowingMsg.MsgType.THROW_REQUEST:
+                    //将搜索到的IP写到输入框中
+                    runOnUiThread(() -> {
+                        if (msg.getReceiver() != null && msg.getReceiver().getIp() != null) {
+                            etIp.setText(msg.getReceiver().getIp());
+                        }
+                        Toast.makeText(getApplicationContext(), msg.getContent(), Toast.LENGTH_SHORT).show();
+                    });
+                    break;
                 case ThrowingMsg.MsgType.TEXT:
                     runOnUiThread(() -> Toast.makeText(getApplicationContext(), msg.getContent(), Toast.LENGTH_SHORT).show());
                     break;
@@ -88,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
                             runOnUiThread(() -> {
                                 //接收投屏
                                 btnSearch.setVisibility(View.GONE);
+                                etIp.setVisibility(View.GONE);
                                 btnCapture.setVisibility(View.GONE);
                                 ivCapture.setBackgroundColor(Color.BLACK);
 
@@ -123,6 +137,13 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(getApplicationContext(), "系统版本过低，暂不支持截屏操作！", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                if (TextUtils.isEmpty(etIp.getText().toString().trim())) {
+                    Toast.makeText(getApplicationContext(), "请输入投屏ip", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                ThrowingSendConnector.throwingIp = etIp.getText().toString().trim();
+
                 try2StartScreenShot();
                 break;
         }
@@ -136,7 +157,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void releaseMulicastLock(){
+    private void releaseMulicastLock() {
         if (multicastLock != null && multicastLock.isHeld()) {
             multicastLock.release();
         }
@@ -157,34 +178,11 @@ public class MainActivity extends AppCompatActivity {
                     Intent intent = new Intent(this, ThrowingScreenService.class);
                     intent.putExtra("code", resultCode);
                     intent.putExtra("data", data);
-                    if(android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         startForegroundService(intent);
                     } else {
                         startService(intent);
                     }
-
-
-//                    new Thread(() -> {
-//                        //截屏
-//                        ScreenShotHelper screenShotHelper = new ScreenShotHelper(MainActivity.this, resultCode, data,
-//                                (Bitmap bitmap) -> {
-//                                    runOnUiThread(() -> ivCapture.setImageBitmap(bitmap));
-//
-//                                    String base64Str = CompressUtil.bitmapToBase64(bitmap);
-//                                    if (sendConnector == null) {
-//                                        sendConnector = new ThrowingSendConnector();
-//                                    }
-//
-//                                    @ThrowingMsg.MsgType int type = ThrowingMsg.MsgType.IMAGE;
-////        Receiver receiver = new Receiver("127.0.0.1", PushConstant.PUSH_MSG_PORT);
-////        Receiver receiver = new Receiver("255.255.255.255", PushConstant.PUSH_MSG_PORT);
-//                                    Receiver receiver = new Receiver("192.168.1.24", Constant.PUSH_MSG_PORT);
-//                                    ThrowingMsg msg = new ThrowingMsg(type, base64Str, receiver, UUID.randomUUID().toString());
-//                                    Log.e(TAG, msg.getSeq() + "->" + msg.getContent().length());
-//                                    sendConnector.send(msg);
-//                                });
-//                        screenShotHelper.startScreenShot();
-//                    }).start();
                 }
                 break;
         }

@@ -11,6 +11,7 @@ import com.throwing.screen.constant.Constant;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
@@ -25,6 +26,8 @@ import java.util.UUID;
 public class ThrowingSendConnector {
 
     private final static String TAG = ThrowingSendConnector.class.getSimpleName();
+
+    public static String throwingIp = "192.168.1.24";
 
     private DatagramChannel channel;
 
@@ -46,42 +49,42 @@ public class ThrowingSendConnector {
             hostSocket = new MulticastSocket();
 //            hostSocket.joinGroup(InetAddress.getByName(Constant.FIND_BROADCAST_IP));
             hostSocket.setTimeToLive(1);
-            hostSocket.setLoopbackMode(false);
+            hostSocket.setLoopbackMode(true);
             hostSocket.setNetworkInterface(NetworkInterface.getByName("wlan0"));
             // 设置接收超时时间
             hostSocket.setSoTimeout(Constant.FIND_PORT);
-
-            PushConfig pushConfig = new PushConfig("192.168.1.24", Constant.PUSH_MSG_PORT);
-            pushClient = new PushClient(pushConfig);
-            pushClient.setPushHandler(new PushHandler() {
-                @Override
-                public void onConnect(SocketChannel sc) {
-                    Log.e(TAG, "onConnect");
-                }
-
-                @Override
-                public void onMessage(SocketChannel sc, byte[] bytes) {
-                    Log.e(TAG, "onMessage" + new String(bytes));
-                }
-
-                @Override
-                public void onDisconnect(SocketChannel sc, boolean isRemote, boolean isAnomalous) {
-                    Log.e(TAG, "onConnect");
-                    pushClient.start();
-                }
-            });
-            pushClient.start();
         } catch (IOException e) {
             Log.e(TAG, e.getMessage(), e);
         }
     }
 
+    public void startPush(){
+        PushConfig pushConfig = new PushConfig(ThrowingSendConnector.throwingIp, Constant.PUSH_MSG_PORT);
+        pushClient = new PushClient(pushConfig);
+        pushClient.setPushHandler(new PushHandler() {
+            @Override
+            public void onConnect(SocketChannel sc) {
+                Log.e(TAG, "onConnect");
+            }
+
+            @Override
+            public void onMessage(SocketChannel sc, byte[] bytes) {
+                Log.e(TAG, "onMessage" + new String(bytes));
+            }
+
+            @Override
+            public void onDisconnect(SocketChannel sc, boolean isRemote, boolean isAnomalous) {
+                Log.e(TAG, "onConnect");
+                pushClient.start();
+            }
+        });
+        pushClient.start();
+    }
+
     public void search() {
         @ThrowingMsg.MsgType int type = ThrowingMsg.MsgType.THROW_REQUEST;
-//        Receiver receiver = new Receiver("127.0.0.1", Constant.FIND_PORT);
         Receiver receiver = new Receiver(Constant.FIND_BROADCAST_IP, Constant.FIND_PORT);
-//        Receiver receiver = new Receiver("192.168.1.24", Constant.FIND_PORT);
-//        Receiver receiver = new Receiver("10.180.2.86", Constant.FIND_PORT);
+//        Receiver receiver = new Receiver(throwingIp, Constant.FIND_PORT);
         ThrowingMsg msg = new ThrowingMsg(type, Constant.SEARCH, receiver, UUID.randomUUID().toString());
 
         try {
@@ -103,7 +106,14 @@ public class ThrowingSendConnector {
 //        }
     }
 
+    public boolean isPushConnected(){
+        return pushClient != null && pushClient.isConnected();
+    }
+
     public synchronized void send(ThrowingMsg msg) {
+        if(pushClient == null){
+            throw new RuntimeException("Please startPush first！");
+        }
         try {
             pushClient.sendMsg(msg.getContent());
             pushClient.sendMsg(Constant.MSG_SUFFIX);

@@ -209,6 +209,10 @@ public class PushClient implements Runnable {
         }
     }
 
+    public boolean isConnected(){
+        return socketChannel != null && socketChannel.isConnected();
+    }
+
     public void close() {
         closeConnect();
         destroy();

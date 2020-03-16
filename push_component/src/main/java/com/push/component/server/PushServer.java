@@ -28,6 +28,8 @@ public class PushServer {
 
     private final static String TAG = PushServer.class.getSimpleName();
 
+    private ServerSocketChannel server;
+
     private PushHandler pushHandler = null;
     private Selector selector = null;
     private ExecutorService threadPool = null;
@@ -57,7 +59,7 @@ public class PushServer {
 
     private void initServerSocketChannel(int port) {
         try {
-            ServerSocketChannel server = ServerSocketChannel.open();
+            server = ServerSocketChannel.open();
             server.socket().bind(new InetSocketAddress(port));
             server.socket().setSoTimeout(5 * 1000);
             server.configureBlocking(false);
@@ -84,7 +86,7 @@ public class PushServer {
                     // ===============
                     iterator.remove(); // 移除事件
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 Log.e(TAG, e.getMessage(), e);
             }
         }
@@ -179,17 +181,21 @@ public class PushServer {
         }
     }
 
-    public void close(){
+    public void close() {
         running = false;
 
-        if(selector != null){
-            try {
-                selector.close();
-            } catch (IOException e){
-                Log.e(TAG, e.getMessage(), e);
+        try {
+            if (server != null) {
+                server.close();
             }
+            if (selector != null) {
+                selector.close();
+            }
+        } catch (IOException e) {
+            Log.e(TAG, e.getMessage(), e);
         }
-        if(threadPool != null && !threadPool.isShutdown()){
+
+        if (threadPool != null && !threadPool.isShutdown()) {
             threadPool.shutdownNow();
         }
     }
