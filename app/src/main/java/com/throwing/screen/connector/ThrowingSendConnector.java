@@ -117,7 +117,7 @@ public class ThrowingSendConnector {
         try {
             pushClient.sendMsg(msg.getContent());
             pushClient.sendMsg(Constant.MSG_SUFFIX);
-            Thread.sleep(100);
+//            Thread.sleep(100);
 
 //            Log.e(TAG, Thread.currentThread().getId() + "");
 //            byte[] typeBytes = NumberUtil.int2Bytes(msg.getType());

@@ -29,6 +29,8 @@ public class ThrowingScreenService extends Service {
 
     private final static String TAG = ThrowingScreenService.class.getSimpleName();
 
+    private ScreenShotHelper screenShotHelper;
+
     private ThrowingSendConnector sendConnector;
 
     @Override
@@ -43,7 +45,7 @@ public class ThrowingScreenService extends Service {
         }
 
         //截屏
-        ScreenShotHelper screenShotHelper = new ScreenShotHelper(this, resultCode, resultData,
+        screenShotHelper = new ScreenShotHelper(this, resultCode, resultData,
                 (Bitmap bitmap) -> {
                     //图像给到activity
 //                    runOnUiThread(() -> ivCapture.setImageBitmap(bitmap));
@@ -99,4 +101,15 @@ public class ThrowingScreenService extends Service {
         return null;
     }
 
+    @Override
+    public void onDestroy() {
+        if(screenShotHelper != null){
+            screenShotHelper.dispose();
+        }
+
+        if(sendConnector != null){
+            sendConnector.dispose();
+        }
+        super.onDestroy();
+    }
 }

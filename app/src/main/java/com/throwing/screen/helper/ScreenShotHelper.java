@@ -66,7 +66,7 @@ public class ScreenShotHelper {
                     Log.e(TAG, "");
 
                     Image image = mImageReader.acquireNextImage();
-                    if(image != null) {
+                    if (image != null) {
                         int width = image.getWidth();
                         int height = image.getHeight();
                         final Image.Plane[] planes = image.getPlanes();
@@ -142,20 +142,21 @@ public class ScreenShotHelper {
         return Resources.getSystem().getDisplayMetrics().heightPixels;
     }
 
-    private void dispose(){
-        if(mVirtualDisplay != null) {
+    public void dispose() {
+        if (mVirtualDisplay != null) {
             mVirtualDisplay.release();
         }
-        if(mImageReader != null){
+        if (mImageReader != null) {
             mImageReader.close();
         }
-        if(mMediaProjection != null) {
+        if (mMediaProjection != null) {
             mMediaProjection.stop();
         }
     }
 
     //在后台线程里保存文件
     Handler backgroundHandler;
+
     private Handler getBackgroundHandler() {
         if (backgroundHandler == null) {
             HandlerThread backgroundThread =

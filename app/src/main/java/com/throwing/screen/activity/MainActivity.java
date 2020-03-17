@@ -200,6 +200,8 @@ public class MainActivity extends AppCompatActivity {
             sendConnector.dispose();
         }
 
+        stopService(new Intent(this, ThrowingScreenService.class));
+
         super.onDestroy();
     }
 }
